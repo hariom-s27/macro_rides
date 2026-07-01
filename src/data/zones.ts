@@ -1,8 +1,9 @@
 import type { LngLat } from '../engine/types'
 
 // Service zones = polygons where Macro Rides operates.
-// Hand-drawn to sit over Koramangala, with the boundary deliberately crossing
-// the driver's corridor so the zone filter visibly excludes some in-corridor pickups.
+// The active zone covers the whole route generously (driver is always in-service).
+// A small INACTIVE carve-out sits across the corridor's east end, so a few
+// in-corridor+ahead pickups there get excluded — the visible "zone does work" proof.
 // Each polygon is a closed ring of [lng,lat]; first point repeated at the end.
 
 export type Zone = {
@@ -15,29 +16,30 @@ export type Zone = {
 export const ZONES: Zone[] = [
   {
     id: 'z1',
-    name: 'Koramangala Core',
+    name: 'Koramangala Service Area',
     active: true,
-    // A box covering the western + central part of the route.
-    // Its eastern edge (~77.622) cuts across the corridor → east-side pickups
-    // fall OUTSIDE this zone.
+    // Wide box covering the ENTIRE route + ~600m margin all around,
+    // so the driver is inside an active zone for the whole trip.
     polygon: [
-      [77.6040, 12.9280],
-      [77.6220, 12.9280],
-      [77.6220, 12.9430],
-      [77.6040, 12.9430],
-      [77.6040, 12.9280], // close the ring
+      [77.5985, 12.9250],
+      [77.6395, 12.9250],
+      [77.6395, 12.9420],
+      [77.5985, 12.9420],
+      [77.5985, 12.9250],
     ],
   },
   {
     id: 'z2',
-    name: 'ST Bed / East',
-    active: false,  // inactive → pickups here are NOT eligible (shows active vs inactive)
+    name: 'Restricted Pocket (inactive)',
+    active: false,
+    // Small inactive rectangle straddling the corridor near the east/mid section.
+    // Pickups inside this pocket are excluded even when in-corridor & ahead.
     polygon: [
-      [77.6220, 12.9280],
-      [77.6360, 12.9280],
-      [77.6360, 12.9430],
-      [77.6220, 12.9430],
-      [77.6220, 12.9280],
+      [77.6250, 12.9330],
+      [77.6320, 12.9330],
+      [77.6320, 12.9385],
+      [77.6250, 12.9385],
+      [77.6250, 12.9330],
     ],
   },
 ]

@@ -6,13 +6,16 @@ import type { LngLat, Route, Pickup } from './types'
 
 export const CORRIDOR_HALF_WIDTH_M = 350
 
-/** Is this point inside ANY active service zone? */
+/** In service = inside an ACTIVE zone AND not inside any INACTIVE (restricted) zone. */
 export function isInActiveZone(pos: LngLat): boolean {
+  const pt = point(pos)
+  let inActive = false
   for (const z of ZONES) {
-    if (!z.active) continue
-    if (booleanPointInPolygon(point(pos), turfPolygon([z.polygon]))) return true
+    const inside = booleanPointInPolygon(pt, turfPolygon([z.polygon]))
+    if (inside && z.active) inActive = true
+    if (inside && !z.active) return false   // restricted pocket → excluded immediately
   }
-  return false
+  return inActive
 }
 
 /** A pickup's "mile-marker": metres along the FULL route where it projects. */
