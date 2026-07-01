@@ -58,3 +58,16 @@ export function eligibleBruteForce(route: Route, driverMeters: number, pickups: 
   for (const p of pickups) if (isEligible(slice, route, driverMeters, p)) eligible.add(p.id)
   return eligible
 }
+
+/**
+ * detourMeters — rough cost to grab this pickup: out to it and back ≈ 2× the
+ * perpendicular distance to the road ahead. A ranking heuristic (honest approximation),
+ * not a routed detour. Cheaper (smaller) = better for the captain.
+ */
+export function detourMeters(
+  slice: ReturnType<typeof aheadSlice>,
+  p: Pickup,
+): number {
+  const crossTrack = pointToLineDistance(point(p.position), slice, { units: 'meters' })
+  return 2 * crossTrack
+}

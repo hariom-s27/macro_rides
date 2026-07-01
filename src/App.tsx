@@ -6,9 +6,9 @@ import { PathLayer, ScatterplotLayer, GeoJsonLayer, PolygonLayer } from '@deck.g
 import { DRIVER_ROUTE } from './data/route'
 import { PICKUPS } from './data/pickups'
 import { ZONES } from './data/zones'
-import { buildCorridor, driverPosition, routeLengthMeters } from './engine/corridor'
+import { buildCorridor, driverPosition, routeLengthMeters, aheadSlice } from './engine/corridor'
 import { buildPickupIndex, queryEligibleH3 } from './engine/h3'
-import { eligibleBruteForce } from './engine/eligibility'
+import { eligibleBruteForce, detourMeters } from './engine/eligibility'
 import type { LngLat, Pickup } from './engine/types'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
@@ -43,6 +43,18 @@ function App() {
     [driverM, pickupIndex],
   )
   const matches = setsEqual(brute, h3.eligible)
+
+  // Rank eligible pickups by detour cost (cheapest first).
+  const slice = aheadSlice(DRIVER_ROUTE, driverM)
+  const ranked = PICKUPS
+    .filter((p) => h3.eligible.has(p.id))
+    .map((p) => ({ pickup: p, detour: detourMeters(slice, p) }))
+    .sort((a, b) => a.detour - b.detour)
+
+  // A quick lookup: pickup id → its rank (1 = best). Used to label the map.
+  // (global.Map, not the react-map-gl `Map` imported above)
+  const rankById = new globalThis.Map<number, number>()
+  ranked.forEach((r, i) => rankById.set(r.pickup.id, i + 1))
 
   // The self-driving loop: while playing, advance the driver a fixed step each tick.
   useEffect(() => {
