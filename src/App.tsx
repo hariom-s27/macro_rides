@@ -2,7 +2,7 @@ import Map, { useControl } from 'react-map-gl/maplibre'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers'
-import { DRIVER_ROUTE } from './data/route'
+import { DRIVER_ROUTE, type LngLat } from './data/route'
 import { PICKUPS, type Pickup } from './data/pickups'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
@@ -22,16 +22,16 @@ function DeckGLOverlay(props: MapboxOverlayProps) {
 function App() {
   const layers = [
     // route (drawn first = underneath)
-    new PathLayer({
-      id: 'driver-route',
-      data: [{ path: DRIVER_ROUTE }],
-      getPath: (d: { path: number[][] }) => d.path,
-      getColor: [30, 90, 200],       // blue
-      getWidth: 6,
-      widthMinPixels: 3,
-      capRounded: true,
-      jointRounded: true,
-    }),
+    new PathLayer<{ path: LngLat[] }>({
+  id: 'driver-route',
+  data: [{ path: DRIVER_ROUTE }],
+  getPath: (d) => d.path,
+  getColor: [30, 90, 200],
+  getWidth: 6,
+  widthMinPixels: 3,
+  capRounded: true,
+  jointRounded: true,
+}),
     // pickups (drawn after = on top)
     new ScatterplotLayer({
       id: 'pickups',
