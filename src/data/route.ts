@@ -21,3 +21,22 @@ export const DRIVER_ROUTE: LngLat[] = [
   [77.62980, 12.93440],
   [77.63100, 12.93320], // end — toward ST Bed / Ring Road side
 ]
+
+/** An alternate route for the re-route demo — same start/end, dips south through
+ *  5th Block instead of following the north-bending arc of DRIVER_ROUTE. */
+export const ALT_ROUTE: LngLat[] = [
+  [77.61073, 12.93380], // same start
+  [77.61230, 12.93300],
+  [77.61420, 12.93230],
+  [77.61630, 12.93190],
+  [77.61850, 12.93180],
+  [77.62070, 12.93210],
+  [77.62280, 12.93270],
+  [77.62480, 12.93350],
+  [77.62670, 12.93440], // curves back north toward the shared end
+  [77.62840, 12.93520],
+  [77.62970, 12.93430],
+  [77.63100, 12.93320], // same end
+]
+
+export const ROUTES: LngLat[][] = [DRIVER_ROUTE, ALT_ROUTE]

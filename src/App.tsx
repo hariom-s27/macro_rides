@@ -4,7 +4,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
 import { PathLayer, ScatterplotLayer, GeoJsonLayer, PolygonLayer } from '@deck.gl/layers'
 import { H3HexagonLayer } from '@deck.gl/geo-layers'
-import { DRIVER_ROUTE } from './data/route'
+import { ROUTES } from './data/route'
 import { PICKUPS } from './data/pickups'
 import { ZONES } from './data/zones'
 import { buildCorridor, driverPosition, routeLengthMeters, aheadSlice } from './engine/corridor'
@@ -30,7 +30,9 @@ function setsEqual(a: Set<number>, b: Set<number>): boolean {
 
 function App() {
   const pickupIndex = useMemo(() => buildPickupIndex(PICKUPS), [])
-  const routeLen = routeLengthMeters(DRIVER_ROUTE)
+  const [routeIdx, setRouteIdx] = useState(0)
+  const activeRoute = ROUTES[routeIdx]
+  const routeLen = routeLengthMeters(activeRoute)
   const [driverM, setDriverM] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [showGrid, setShowGrid] = useState(false)
@@ -41,17 +43,17 @@ function App() {
   const demand = useMemo(() => buildDemandHeatmap(PICKUPS), [])
   const maxDemand = useMemo(() => Math.max(1, ...demand.map((d) => d.count)), [demand])
 
-  const driver = driverPosition(DRIVER_ROUTE, driverM)
-  const corridor = buildCorridor(DRIVER_ROUTE, driverM)
-  const brute = eligibleBruteForce(DRIVER_ROUTE, driverM, PICKUPS, ZONES)
+  const driver = driverPosition(activeRoute, driverM)
+  const corridor = buildCorridor(activeRoute, driverM)
+  const brute = eligibleBruteForce(activeRoute, driverM, PICKUPS, ZONES)
   const h3 = useMemo(
-    () => queryEligibleH3(DRIVER_ROUTE, driverM, PICKUPS, pickupIndex, ZONES),
-    [driverM, pickupIndex],
+    () => queryEligibleH3(activeRoute, driverM, PICKUPS, pickupIndex, ZONES),
+    [activeRoute, driverM, pickupIndex],
   )
   const matches = setsEqual(brute, h3.eligible)
 
   // Rank eligible pickups by detour cost (cheapest first).
-  const slice = aheadSlice(DRIVER_ROUTE, driverM)
+  const slice = aheadSlice(activeRoute, driverM)
   const ranked = PICKUPS
     .filter((p) => h3.eligible.has(p.id))
     .map((p) => ({ pickup: p, detour: detourMeters(slice, p) }))
@@ -86,11 +88,11 @@ function App() {
       // pale yellow → deep orange as demand rises (colour-blind-safe warm ramp)
       getFillColor: (d) => {
         const t = d.count / maxDemand           // 0..1
-        return [235, 180 - t * 110, 60, 70]     // lighter + much more transparent
+        return [235, 185 - t * 110, 70, 55]     // alpha 55 (was 140) — streets stay visible
       },
       extruded: false,
       stroked: true,
-      getLineColor: [180, 120, 20, 120],
+      getLineColor: [200, 140, 40, 90],         // fainter outline too
       lineWidthMinPixels: 1,
       pickable: false,
     }),
@@ -127,7 +129,7 @@ function App() {
     }),
     new PathLayer<{ path: LngLat[] }>({
       id: 'driver-route',
-      data: [{ path: DRIVER_ROUTE }],
+      data: [{ path: activeRoute }],
       getPath: (d) => d.path,
       getColor: [30, 90, 200],
       getWidth: 6,
@@ -227,6 +229,18 @@ function App() {
             }}
           >
             ↺ Reset
+          </button>
+          <button
+            onClick={() => {
+              setRouteIdx((i) => (i + 1) % ROUTES.length)
+              setDriverM(0) // restart the driver on the new route
+            }}
+            style={{
+              padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc',
+              background: '#2b6cb0', color: '#fff', cursor: 'pointer', fontWeight: 600,
+            }}
+          >
+            Re-route
           </button>
           <button
             onClick={() => setShowGrid((s) => !s)}
