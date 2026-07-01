@@ -114,8 +114,12 @@ function App() {
       id: 'pickups',
       data: PICKUPS,
       getPosition: (d: Pickup) => d.position,
-      getFillColor: (d: Pickup) => (h3.eligible.has(d.id) ? [230, 120, 20] : [110, 110, 110]),
-      updateTriggers: { getFillColor: [driverM] },
+      getFillColor: (d: Pickup) => {
+        if (!h3.eligible.has(d.id)) return [110, 110, 110]        // grey = not eligible
+        const rank = rankById.get(d.id) ?? 99
+        return rank <= 3 ? [220, 60, 20] : [230, 150, 60]         // top-3 deep, rest light
+      },
+      updateTriggers: { getFillColor: [driverM, ranked.length] },
       getRadius: 30,
       radiusMinPixels: 4,
       radiusMaxPixels: 10,
@@ -170,6 +174,16 @@ function App() {
           same {h3.eligible.size} eligible pickups brute force finds by testing all {h3.total}.
           Accuracy from geometry, speed from the index.
         </div>
+        {ranked.length > 0 && (
+          <div style={{ fontSize: 12, color: '#333', marginBottom: 8 }}>
+            <b>Best pickups (least detour):</b>{' '}
+            {ranked.slice(0, 3).map((r, i) => (
+              <span key={r.pickup.id} style={{ marginRight: 12 }}>
+                #{i + 1} — pickup {r.pickup.id} (~{Math.round(r.detour)}m)
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <button
             onClick={() => setPlaying((p) => !p)}
