@@ -24,6 +24,19 @@ export function alongDistanceMeters(route: Route, p: LngLat): number {
   return snapped.properties.location as number
 }
 
+/** Backward-compatible helper for the existing corridor tests. */
+export function isWithinCorridor(pickup: Pickup, route: Route, driverMeters: number | LngLat): boolean {
+  const driverAlong = Array.isArray(driverMeters) ? alongDistanceMeters(route, driverMeters) : driverMeters
+  const slice = aheadSlice(route, driverAlong)
+  return pointToLineDistance(point(pickup.position), slice, { units: 'meters' }) <= CORRIDOR_HALF_WIDTH_M
+}
+
+/** Backward-compatible helper for the existing directional tests. */
+export function isAhead(pickup: Pickup, route: Route, driverMeters: number | LngLat): boolean {
+  const driverAlong = Array.isArray(driverMeters) ? alongDistanceMeters(route, driverMeters) : driverMeters
+  return alongDistanceMeters(route, pickup.position) >= driverAlong
+}
+
 /** The shared per-pickup predicate: within 350 m of the road ahead AND ahead of
  *  the driver. BOTH brute force and the H3 narrow phase call THIS, so Step 16's
  *  assert compares identical logic (otherwise it would prove nothing). */

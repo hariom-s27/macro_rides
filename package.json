@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@deck.gl/mapbox": "^9.3.5",
@@ -15,6 +16,7 @@
     "@turf/along": "^7.3.5",
     "@turf/boolean-point-in-polygon": "^7.3.5",
     "@turf/buffer": "^7.3.5",
+    "@turf/distance": "^7.3.5",
     "@turf/helpers": "^7.3.5",
     "@turf/length": "^7.3.5",
     "@turf/line-slice": "^7.3.5",
@@ -40,6 +42,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^4.1.9"
   }
 }
