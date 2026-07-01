@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Map, { useControl } from 'react-map-gl/maplibre'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
@@ -6,6 +6,8 @@ import { PathLayer, ScatterplotLayer, GeoJsonLayer } from '@deck.gl/layers'
 import { DRIVER_ROUTE } from './data/route'
 import { PICKUPS } from './data/pickups'
 import { buildCorridor, driverPosition, routeLengthMeters } from './engine/corridor'
+import { buildPickupIndex, queryEligibleH3 } from './engine/h3'
+import { eligibleBruteForce } from './engine/eligibility'
 import type { LngLat, Pickup } from './engine/types'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
@@ -18,12 +20,25 @@ function DeckGLOverlay(props: MapboxOverlayProps) {
   return null
 }
 
+function setsEqual(a: Set<number>, b: Set<number>): boolean {
+  if (a.size !== b.size) return false
+  for (const x of a) if (!b.has(x)) return false
+  return true
+}
+
 function App() {
-  const routeLen = routeLengthMeters(DRIVER_ROUTE)      // metres
-  const [driverM, setDriverM] = useState(0)             // driver distance along route (metres)
+  const pickupIndex = useMemo(() => buildPickupIndex(PICKUPS), [])
+  const routeLen = routeLengthMeters(DRIVER_ROUTE)
+  const [driverM, setDriverM] = useState(0)
+
   const driver = driverPosition(DRIVER_ROUTE, driverM)
-  // Build the corridor (recomputes as the driver moves).
   const corridor = buildCorridor(DRIVER_ROUTE, driverM)
+  const brute = eligibleBruteForce(DRIVER_ROUTE, driverM, PICKUPS)
+  const h3 = useMemo(
+    () => queryEligibleH3(DRIVER_ROUTE, driverM, PICKUPS, pickupIndex),
+    [driverM, pickupIndex],
+  )
+  const matches = setsEqual(brute, h3.eligible)
 
   const layers = [
     // corridor — drawn first, underneath everything. deck.gl skips falsy layers,
@@ -50,7 +65,8 @@ function App() {
       id: 'pickups',
       data: PICKUPS,
       getPosition: (d: Pickup) => d.position,
-      getFillColor: [110, 110, 110],
+      getFillColor: (d: Pickup) => (h3.eligible.has(d.id) ? [230, 120, 20] : [110, 110, 110]),
+      updateTriggers: { getFillColor: [driverM] },
       getRadius: 30,
       radiusMinPixels: 4,
       radiusMaxPixels: 10,
@@ -85,14 +101,29 @@ function App() {
 
       <div style={{
         position: 'absolute', bottom: 20, left: 20, right: 20,
-        background: 'rgba(255,255,255,0.92)', padding: '10px 14px',
-        borderRadius: 8, fontFamily: 'system-ui, sans-serif', fontSize: 14,
+        background: 'rgba(255,255,255,0.97)',
+        padding: '12px 16px',
+        borderRadius: 10, fontFamily: 'system-ui, sans-serif', fontSize: 14,
+        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+        zIndex: 10,
+        pointerEvents: 'auto',
       }}>
-        Driver: {(driverM / 1000).toFixed(2)} km / {(routeLen / 1000).toFixed(2)} km
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 8 }}>
+          <span><b>Driver</b> {(driverM / 1000).toFixed(2)} / {(routeLen / 1000).toFixed(2)} km</span>
+          <span><b>Eligible</b> {h3.eligible.size}</span>
+          <span><b>Checked</b> {h3.checked} of {h3.total} pickups</span>
+          <span style={{ color: matches ? '#0a7d2c' : '#c0392b', fontWeight: 600 }}>
+            {matches ? '✓ H3 matches brute-force truth' : '✗ MISMATCH — investigate'}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
+          The H3 index ran the exact test on only {h3.checked} of {h3.total} points and found the
+          same {h3.eligible.size} eligible pickups brute force finds by testing all {h3.total}.
+          Accuracy from geometry, speed from the index.
+        </div>
         <input
           type="range" min={0} max={routeLen} step={10}
-          value={driverM}
-          onChange={(e) => setDriverM(Number(e.target.value))}
+          value={driverM} onChange={(e) => setDriverM(Number(e.target.value))}
           style={{ width: '100%' }}
         />
       </div>
