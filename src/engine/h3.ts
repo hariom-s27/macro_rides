@@ -1,7 +1,8 @@
-import { latLngToCell, gridDisk, polygonToCells } from 'h3-js'
+import { latLngToCell, gridDisk, polygonToCells, cellToBoundary } from 'h3-js'
 import type { Feature, Polygon, MultiPolygon } from 'geojson'
 import { buildCorridor, aheadSlice } from './corridor'
 import { isEligible } from './eligibility'
+import type { Zone } from '../data/zones'
 import type { LngLat, Route, Pickup } from './types'
 
 export const H3_RES = 9 // edge ≈ 174 m — a natural fit for a 350 m corridor
@@ -41,10 +42,17 @@ export function corridorCandidateCells(corridor: Feature<Polygon | MultiPolygon>
   return padded
 }
 
+/** A candidate H3 cell → a closed [lng,lat] ring, ready for a PolygonLayer.
+ *  The `true` flag returns GeoJSON (lng,lat) order — our coordinate adapter. */
+export function cellToRing(cell: string): LngLat[] {
+  return cellToBoundary(cell, true) as LngLat[]
+}
+
 export interface QueryResult {
   eligible: Set<number>
   checked: number // pickups that passed broad phase → got the exact test
   total: number   // all pickups
+  candidateCells: string[] // the H3 cells the broad phase looked at
 }
 
 /** BROAD phase (H3 cell lookup) → NARROW phase (exact test on candidates only). */
@@ -53,9 +61,10 @@ export function queryEligibleH3(
   driverMeters: number,
   pickups: Pickup[],
   index: PickupIndex,
+  zones: Zone[],
 ): QueryResult {
   const corridor = buildCorridor(route, driverMeters)
-  if (!corridor) return { eligible: new Set(), checked: 0, total: pickups.length }
+  if (!corridor) return { eligible: new Set(), checked: 0, total: pickups.length, candidateCells: [] }
 
   const slice = aheadSlice(route, driverMeters)
   const candidateCells = corridorCandidateCells(corridor as Feature<Polygon | MultiPolygon>)
@@ -69,7 +78,7 @@ export function queryEligibleH3(
 
   // narrow phase: exact test on ONLY those candidates
   const eligible = new Set<number>()
-  for (const p of candidates) if (isEligible(slice, route, driverMeters, p)) eligible.add(p.id)
+  for (const p of candidates) if (isEligible(slice, route, driverMeters, p, zones)) eligible.add(p.id)
 
-  return { eligible, checked: candidates.length, total: pickups.length }
+  return { eligible, checked: candidates.length, total: pickups.length, candidateCells: [...candidateCells] }
 }

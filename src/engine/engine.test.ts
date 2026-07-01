@@ -4,6 +4,7 @@ import distance from '@turf/distance'
 import destination from '@turf/destination'
 
 import { DRIVER_ROUTE } from '../data/route'
+import { ZONES } from '../data/zones'
 import { aheadSlice } from './corridor'
 import { isEligible, alongDistanceMeters, isInActiveZone } from './eligibility'
 import type { Pickup } from './types'
@@ -28,12 +29,12 @@ describe('eligibility via the REAL isEligible path (driver at start = 0m)', () =
   it('a ~150m-off point near the route is eligible', () => {
     // offset from a mid-route vertex, so it's ahead of a start-driver and in-zone
     const near = destination(point(DRIVER_ROUTE[6]), 0.15, 90, { units: 'kilometers' })
-    expect(isEligible(slice0, DRIVER_ROUTE, 0, pk(1, coordOf(near)))).toBe(true)
+    expect(isEligible(slice0, DRIVER_ROUTE, 0, pk(1, coordOf(near)), ZONES)).toBe(true)
   })
 
   it('a ~600m-off point is NOT eligible (outside 350m corridor)', () => {
     const far = destination(point(DRIVER_ROUTE[6]), 0.6, 90, { units: 'kilometers' })
-    expect(isEligible(slice0, DRIVER_ROUTE, 0, pk(2, coordOf(far)))).toBe(false)
+    expect(isEligible(slice0, DRIVER_ROUTE, 0, pk(2, coordOf(far)), ZONES)).toBe(false)
   })
 })
 
@@ -48,7 +49,7 @@ describe('directional filter via alongDistanceMeters (odometer)', () => {
     const midMeters = alongDistanceMeters(DRIVER_ROUTE, DRIVER_ROUTE[7])
     const sliceMid = aheadSlice(DRIVER_ROUTE, midMeters)
     const nearStart = destination(point(DRIVER_ROUTE[1]), 0.1, 90, { units: 'kilometers' })
-    expect(isEligible(sliceMid, DRIVER_ROUTE, midMeters, pk(3, coordOf(nearStart)))).toBe(false)
+    expect(isEligible(sliceMid, DRIVER_ROUTE, midMeters, pk(3, coordOf(nearStart)), ZONES)).toBe(false)
   })
 })
 

@@ -2,6 +2,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { pointToLineDistance, nearestPointOnLine, point, lineString, polygon as turfPolygon } from '@turf/turf'
 import { aheadSlice } from './corridor'
 import { ZONES } from '../data/zones'
+import type { Zone } from '../data/zones'
 import type { LngLat, Route, Pickup } from './types'
 
 export const CORRIDOR_HALF_WIDTH_M = 350
@@ -16,6 +17,14 @@ export function isInActiveZone(pos: LngLat): boolean {
     if (inside && !z.active) return false   // restricted pocket → excluded immediately
   }
   return inActive
+}
+
+/** Is the point inside ANY active zone? */
+export function inActiveZone(p: LngLat, zones: Zone[]): boolean {
+  for (const z of zones) {
+    if (z.active && booleanPointInPolygon(point(p), turfPolygon([z.polygon]))) return true
+  }
+  return false
 }
 
 /** A pickup's "mile-marker": metres along the FULL route where it projects. */
@@ -45,17 +54,19 @@ export function isEligible(
   route: Route,
   driverMeters: number,
   p: Pickup,
+  zones: Zone[],
 ): boolean {
   const within = pointToLineDistance(point(p.position), slice, { units: 'meters' }) <= CORRIDOR_HALF_WIDTH_M
   const ahead = alongDistanceMeters(route, p.position) >= driverMeters
-  return within && ahead && isInActiveZone(p.position)
+  const zoned = inActiveZone(p.position, zones)
+  return within && ahead && zoned
 }
 
 /** BRUTE-FORCE GROUND TRUTH: exact test run on EVERY pickup. */
-export function eligibleBruteForce(route: Route, driverMeters: number, pickups: Pickup[]): Set<number> {
+export function eligibleBruteForce(route: Route, driverMeters: number, pickups: Pickup[], zones: Zone[]): Set<number> {
   const slice = aheadSlice(route, driverMeters)
   const eligible = new Set<number>()
-  for (const p of pickups) if (isEligible(slice, route, driverMeters, p)) eligible.add(p.id)
+  for (const p of pickups) if (isEligible(slice, route, driverMeters, p, zones)) eligible.add(p.id)
   return eligible
 }
 

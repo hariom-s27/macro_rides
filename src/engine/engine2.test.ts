@@ -5,6 +5,8 @@ import { queryEligibleH3, buildPickupIndex } from './h3'
 import { routeLengthMeters } from './corridor'
 import { DRIVER_ROUTE } from '../data/route'
 import { PICKUPS } from '../data/pickups'
+import { ZONES } from '../data/zones'
+import type { Zone } from '../data/zones'
 import type { Route, Pickup } from './types'
 
 // A controlled east-west route at constant latitude. Because it's horizontal,
@@ -14,6 +16,14 @@ const LAT = 12.93
 const ROUTE: Route = [[77.60, LAT], [77.62, LAT]] // ~2.17 km, due east
 const R = 6371008.8                                // Turf's sphere radius (metres)
 const M_PER_DEG_LAT = (R * Math.PI) / 180          // ≈ 111,195 m — the hand constant
+
+// A single zone covering this synthetic route (which sits outside the real ZONES polygons).
+const COVERS_ROUTE: Zone[] = [
+  {
+    id: 'test-zone', name: 'test', active: true,
+    polygon: [[77.59, LAT - 0.01], [77.63, LAT - 0.01], [77.63, LAT + 0.01], [77.59, LAT + 0.01], [77.59, LAT - 0.01]],
+  },
+]
 
 describe('GROUND TRUTH: exact distance matches an independent hand calculation (gap #2)', () => {
   it('a point 0.003° north of the route is ~333.6 m away', () => {
@@ -28,7 +38,7 @@ describe('the 350 m threshold', () => {
   it('a pickup ~300 m out is eligible; ~400 m out is not', () => {
     const near: Pickup = { id: 1, position: [77.61, LAT + 0.0027] } // 0.0027 × 111195 ≈ 300 m
     const far: Pickup = { id: 2, position: [77.61, LAT + 0.0036] }  // ≈ 400 m
-    const set = eligibleBruteForce(ROUTE, 0, [near, far])
+    const set = eligibleBruteForce(ROUTE, 0, [near, far], COVERS_ROUTE)
     expect(set.has(1)).toBe(true)
     expect(set.has(2)).toBe(false)
   })
@@ -39,7 +49,7 @@ describe('isAhead is the discriminator (direction, not distance)', () => {
     const driverM = 1083 // ~halfway along the 2167 m route (driver at ~lng 77.61)
     const behind: Pickup = { id: 3, position: [77.6095, LAT + 0.0009] } // west of driver
     const ahead: Pickup = { id: 4, position: [77.6105, LAT + 0.0009] }  // east of driver
-    const set = eligibleBruteForce(ROUTE, driverM, [behind, ahead])
+    const set = eligibleBruteForce(ROUTE, driverM, [behind, ahead], COVERS_ROUTE)
     expect(set.has(4)).toBe(true)  // ahead + within 350 m → eligible
     expect(set.has(3)).toBe(false) // behind + within 350 m → excluded ONLY because of direction
   })
@@ -51,8 +61,8 @@ describe('THE INVARIANT: H3 index == brute-force truth, everywhere on the real r
     const len = routeLengthMeters(DRIVER_ROUTE)
     for (let i = 0; i <= 50; i++) {
       const d = (len * i) / 50
-      const brute = [...eligibleBruteForce(DRIVER_ROUTE, d, PICKUPS)].sort((a, b) => a - b)
-      const h3 = [...queryEligibleH3(DRIVER_ROUTE, d, PICKUPS, index).eligible].sort((a, b) => a - b)
+      const brute = [...eligibleBruteForce(DRIVER_ROUTE, d, PICKUPS, ZONES)].sort((a, b) => a - b)
+      const h3 = [...queryEligibleH3(DRIVER_ROUTE, d, PICKUPS, index, ZONES).eligible].sort((a, b) => a - b)
       expect(h3).toEqual(brute) // exact set equality at every position
     }
   })

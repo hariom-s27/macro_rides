@@ -7,7 +7,7 @@ import { DRIVER_ROUTE } from './data/route'
 import { PICKUPS } from './data/pickups'
 import { ZONES } from './data/zones'
 import { buildCorridor, driverPosition, routeLengthMeters, aheadSlice } from './engine/corridor'
-import { buildPickupIndex, queryEligibleH3 } from './engine/h3'
+import { buildPickupIndex, queryEligibleH3, cellToRing } from './engine/h3'
 import { eligibleBruteForce, detourMeters } from './engine/eligibility'
 import type { LngLat, Pickup } from './engine/types'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -32,14 +32,15 @@ function App() {
   const routeLen = routeLengthMeters(DRIVER_ROUTE)
   const [driverM, setDriverM] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const routeLenRef = useRef(routeLen)   // latest route length for the tick to read
+  const [showGrid, setShowGrid] = useState(false)
+  const routeLenRef = useRef(routeLen)
   routeLenRef.current = routeLen
 
   const driver = driverPosition(DRIVER_ROUTE, driverM)
   const corridor = buildCorridor(DRIVER_ROUTE, driverM)
-  const brute = eligibleBruteForce(DRIVER_ROUTE, driverM, PICKUPS)
+  const brute = eligibleBruteForce(DRIVER_ROUTE, driverM, PICKUPS, ZONES)
   const h3 = useMemo(
-    () => queryEligibleH3(DRIVER_ROUTE, driverM, PICKUPS, pickupIndex),
+    () => queryEligibleH3(DRIVER_ROUTE, driverM, PICKUPS, pickupIndex, ZONES),
     [driverM, pickupIndex],
   )
   const matches = setsEqual(brute, h3.eligible)
@@ -51,47 +52,52 @@ function App() {
     .map((p) => ({ pickup: p, detour: detourMeters(slice, p) }))
     .sort((a, b) => a.detour - b.detour)
 
-  // A quick lookup: pickup id → its rank (1 = best). Used to label the map.
-  // (global.Map, not the react-map-gl `Map` imported above)
   const rankById = new globalThis.Map<number, number>()
   ranked.forEach((r, i) => rankById.set(r.pickup.id, i + 1))
 
-  // The self-driving loop: while playing, advance the driver a fixed step each tick.
+  // Self-driving loop
   useEffect(() => {
-    if (!playing) return                       // not playing → no timer
-
-    const STEP_M = 15                           // metres advanced per tick
-    const TICK_MS = 100                         // 10 ticks/sec (throttled — smooth enough)
-
+    if (!playing) return
+    const STEP_M = 15
+    const TICK_MS = 100
     const id = setInterval(() => {
-      setDriverM((prev) => {                    // function form → always latest position
+      setDriverM((prev) => {
         const next = prev + STEP_M
-        if (next >= routeLenRef.current) {       // reached the end
-          setPlaying(false)                      // auto-stop
+        if (next >= routeLenRef.current) {
+          setPlaying(false)
           return routeLenRef.current
         }
         return next
       })
     }, TICK_MS)
-
-    return () => clearInterval(id)              // cleanup: stop on pause OR unmount
+    return () => clearInterval(id)
   }, [playing])
 
   const layers = [
-    // zones — drawn at the very bottom
-    new PolygonLayer({
+    new PolygonLayer<typeof ZONES[number]>({
       id: 'zones',
       data: ZONES,
-      getPolygon: (z: any) => [z.polygon],
-      getFillColor: (z: any) => (z.active ? [40, 160, 90, 25] : [150, 150, 150, 20]),
-      getLineColor: (z: any) => (z.active ? [40, 160, 90, 200] : [150, 150, 150, 160]),
+      getPolygon: (z) => z.polygon,
+      getFillColor: (z) => (z.active ? [40, 160, 90, 25] : [150, 150, 150, 20]),
+      getLineColor: (z) => (z.active ? [40, 160, 90, 200] : [150, 150, 150, 160]),
       getLineWidth: 3,
       lineWidthMinPixels: 2,
       stroked: true,
       filled: true,
     }),
-    // corridor — drawn first, underneath everything. deck.gl skips falsy layers,
-    // so if the slice is empty (driver at the very end) this just vanishes safely.
+    // H3 candidate hexagons — the visible broad phase (toggle)
+    showGrid && new PolygonLayer({
+      id: 'h3-grid',
+      data: h3.candidateCells,
+      getPolygon: (cell: string) => cellToRing(cell),
+      getFillColor: [255, 140, 0, 30],     // faint orange fill
+      getLineColor: [255, 140, 0, 160],    // orange hex outlines
+      getLineWidth: 1,
+      lineWidthMinPixels: 1,
+      stroked: true,
+      filled: true,
+      updateTriggers: { getPolygon: [h3.candidateCells] },
+    }),
     corridor && new GeoJsonLayer({
       id: 'corridor',
       data: corridor,
@@ -109,15 +115,14 @@ function App() {
       capRounded: true,
       jointRounded: true,
     }),
-    // pickups — still neutral grey; eligibility colouring is Step 14
     new ScatterplotLayer({
       id: 'pickups',
       data: PICKUPS,
       getPosition: (d: Pickup) => d.position,
       getFillColor: (d: Pickup) => {
-        if (!h3.eligible.has(d.id)) return [110, 110, 110]        // grey = not eligible
+        if (!h3.eligible.has(d.id)) return [110, 110, 110]
         const rank = rankById.get(d.id) ?? 99
-        return rank <= 3 ? [220, 60, 20] : [230, 150, 60]         // top-3 deep, rest light
+        return rank <= 3 ? [220, 60, 20] : [230, 150, 60]
       },
       updateTriggers: { getFillColor: [driverM, ranked.length] },
       getRadius: 30,
@@ -127,7 +132,6 @@ function App() {
       getLineColor: [255, 255, 255],
       lineWidthMinPixels: 1,
     }),
-    // driver — drawn last so it sits on top
     new ScatterplotLayer<{ position: LngLat }>({
       id: 'driver',
       data: [{ position: driver }],
@@ -146,7 +150,7 @@ function App() {
     <>
       <Map
         initialViewState={INITIAL_VIEW}
-        mapStyle="https://tiles.openfreemap.org/styles/liberty"
+        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         style={{ width: '100%', height: '100vh' }}
       >
         <DeckGLOverlay layers={layers as any} />
