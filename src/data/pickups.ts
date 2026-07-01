@@ -23,18 +23,24 @@ function offsetMeters([lng, lat]: LngLat, east: number, north: number): LngLat {
   return [lng + east / M_PER_DEG_LNG, lat + north / M_PER_DEG_LAT]
 }
 
-// Scatter pickups near the route, with a deliberate spread of distances.
-export function generatePickups(count = 60): Pickup[] {
+// Scatter pickups with a realistic city mix: near-route cases plus far-away decoys.
+export function generatePickups(count = 80): Pickup[] {
   const rand = mulberry32(42) // fixed seed → reproducible
   const pickups: Pickup[] = []
 
   for (let i = 0; i < count; i++) {
     // pick a random point ALONG the route to scatter around
     const anchor = DRIVER_ROUTE[Math.floor(rand() * DRIVER_ROUTE.length)]
-
-    // random direction, and a distance spread from ~50m to ~650m off the route
     const angle = rand() * 2 * Math.PI
-    const dist = 50 + rand() * 600           // metres
+
+    // 60% near the route (the interesting in/out/edge cases),
+    // 40% scattered FAR (up to ~2.5km) — the city beyond the corridor.
+    // The far ones are what the H3 broad phase excludes, making "checked" small.
+    const near = rand() < 0.6
+    const dist = near
+      ? 50 + rand() * 550      // ~50–600 m  → in / out / on-edge
+      : 800 + rand() * 1700    // ~0.8–2.5 km → clearly far, excluded by the index
+
     const east = Math.cos(angle) * dist
     const north = Math.sin(angle) * dist
 
