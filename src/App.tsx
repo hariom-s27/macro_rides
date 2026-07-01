@@ -86,7 +86,7 @@ function App() {
       // pale yellow → deep orange as demand rises (colour-blind-safe warm ramp)
       getFillColor: (d) => {
         const t = d.count / maxDemand           // 0..1
-        return [230, 160 - t * 120, 40, 140]    // more red/opaque = hotter
+        return [235, 180 - t * 110, 60, 70]     // lighter + much more transparent
       },
       extruded: false,
       stroked: true,
