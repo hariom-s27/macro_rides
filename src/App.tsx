@@ -2,9 +2,10 @@ import { useState, useMemo } from 'react'
 import Map, { useControl } from 'react-map-gl/maplibre'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
-import { PathLayer, ScatterplotLayer, GeoJsonLayer } from '@deck.gl/layers'
+import { PathLayer, ScatterplotLayer, GeoJsonLayer, PolygonLayer } from '@deck.gl/layers'
 import { DRIVER_ROUTE } from './data/route'
 import { PICKUPS } from './data/pickups'
+import { ZONES } from './data/zones'
 import { buildCorridor, driverPosition, routeLengthMeters } from './engine/corridor'
 import { buildPickupIndex, queryEligibleH3 } from './engine/h3'
 import { eligibleBruteForce } from './engine/eligibility'
@@ -41,6 +42,18 @@ function App() {
   const matches = setsEqual(brute, h3.eligible)
 
   const layers = [
+    // zones — drawn at the very bottom
+    new PolygonLayer({
+      id: 'zones',
+      data: ZONES,
+      getPolygon: (z: any) => [z.polygon],
+      getFillColor: (z: any) => (z.active ? [40, 160, 90, 25] : [150, 150, 150, 20]),
+      getLineColor: (z: any) => (z.active ? [40, 160, 90, 200] : [150, 150, 150, 160]),
+      getLineWidth: 3,
+      lineWidthMinPixels: 2,
+      stroked: true,
+      filled: true,
+    }),
     // corridor — drawn first, underneath everything. deck.gl skips falsy layers,
     // so if the slice is empty (driver at the very end) this just vanishes safely.
     corridor && new GeoJsonLayer({

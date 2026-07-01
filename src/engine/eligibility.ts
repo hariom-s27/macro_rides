@@ -1,8 +1,19 @@
-import { pointToLineDistance, nearestPointOnLine, point, lineString } from '@turf/turf'
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { pointToLineDistance, nearestPointOnLine, point, lineString, polygon as turfPolygon } from '@turf/turf'
 import { aheadSlice } from './corridor'
+import { ZONES } from '../data/zones'
 import type { LngLat, Route, Pickup } from './types'
 
 export const CORRIDOR_HALF_WIDTH_M = 350
+
+/** Is this point inside ANY active service zone? */
+export function isInActiveZone(pos: LngLat): boolean {
+  for (const z of ZONES) {
+    if (!z.active) continue
+    if (booleanPointInPolygon(point(pos), turfPolygon([z.polygon]))) return true
+  }
+  return false
+}
 
 /** A pickup's "mile-marker": metres along the FULL route where it projects. */
 export function alongDistanceMeters(route: Route, p: LngLat): number {
@@ -21,7 +32,7 @@ export function isEligible(
 ): boolean {
   const within = pointToLineDistance(point(p.position), slice, { units: 'meters' }) <= CORRIDOR_HALF_WIDTH_M
   const ahead = alongDistanceMeters(route, p.position) >= driverMeters
-  return within && ahead
+  return within && ahead && isInActiveZone(p.position)
 }
 
 /** BRUTE-FORCE GROUND TRUTH: exact test run on EVERY pickup. */
