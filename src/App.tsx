@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Map, { useControl } from 'react-map-gl/maplibre'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
@@ -31,6 +31,9 @@ function App() {
   const pickupIndex = useMemo(() => buildPickupIndex(PICKUPS), [])
   const routeLen = routeLengthMeters(DRIVER_ROUTE)
   const [driverM, setDriverM] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const routeLenRef = useRef(routeLen)   // latest route length for the tick to read
+  routeLenRef.current = routeLen
 
   const driver = driverPosition(DRIVER_ROUTE, driverM)
   const corridor = buildCorridor(DRIVER_ROUTE, driverM)
@@ -40,6 +43,27 @@ function App() {
     [driverM, pickupIndex],
   )
   const matches = setsEqual(brute, h3.eligible)
+
+  // The self-driving loop: while playing, advance the driver a fixed step each tick.
+  useEffect(() => {
+    if (!playing) return                       // not playing → no timer
+
+    const STEP_M = 15                           // metres advanced per tick
+    const TICK_MS = 100                         // 10 ticks/sec (throttled — smooth enough)
+
+    const id = setInterval(() => {
+      setDriverM((prev) => {                    // function form → always latest position
+        const next = prev + STEP_M
+        if (next >= routeLenRef.current) {       // reached the end
+          setPlaying(false)                      // auto-stop
+          return routeLenRef.current
+        }
+        return next
+      })
+    }, TICK_MS)
+
+    return () => clearInterval(id)              // cleanup: stop on pause OR unmount
+  }, [playing])
 
   const layers = [
     // zones — drawn at the very bottom
@@ -133,6 +157,27 @@ function App() {
           The H3 index ran the exact test on only {h3.checked} of {h3.total} points and found the
           same {h3.eligible.size} eligible pickups brute force finds by testing all {h3.total}.
           Accuracy from geometry, speed from the index.
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <button
+            onClick={() => setPlaying((p) => !p)}
+            style={{
+              padding: '6px 14px', borderRadius: 6, border: 'none',
+              background: playing ? '#c0392b' : '#0a7d2c', color: '#fff',
+              fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            {playing ? '❚❚ Pause' : '▶ Play'}
+          </button>
+          <button
+            onClick={() => { setPlaying(false); setDriverM(0) }}
+            style={{
+              padding: '6px 14px', borderRadius: 6, border: '1px solid #ccc',
+              background: '#fff', cursor: 'pointer',
+            }}
+          >
+            ↺ Reset
+          </button>
         </div>
         <input
           type="range" min={0} max={routeLen} step={10}
