@@ -3,11 +3,12 @@ import Map, { useControl } from 'react-map-gl/maplibre'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
 import { PathLayer, ScatterplotLayer, GeoJsonLayer, PolygonLayer } from '@deck.gl/layers'
+import { H3HexagonLayer } from '@deck.gl/geo-layers'
 import { DRIVER_ROUTE } from './data/route'
 import { PICKUPS } from './data/pickups'
 import { ZONES } from './data/zones'
 import { buildCorridor, driverPosition, routeLengthMeters, aheadSlice } from './engine/corridor'
-import { buildPickupIndex, queryEligibleH3, cellToRing } from './engine/h3'
+import { buildPickupIndex, queryEligibleH3, cellToRing, buildDemandHeatmap } from './engine/h3'
 import { eligibleBruteForce, detourMeters } from './engine/eligibility'
 import type { LngLat, Pickup } from './engine/types'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -33,8 +34,12 @@ function App() {
   const [driverM, setDriverM] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [showGrid, setShowGrid] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(false)
   const routeLenRef = useRef(routeLen)
   routeLenRef.current = routeLen
+
+  const demand = useMemo(() => buildDemandHeatmap(PICKUPS), [])
+  const maxDemand = useMemo(() => Math.max(1, ...demand.map((d) => d.count)), [demand])
 
   const driver = driverPosition(DRIVER_ROUTE, driverM)
   const corridor = buildCorridor(DRIVER_ROUTE, driverM)
@@ -74,6 +79,21 @@ function App() {
   }, [playing])
 
   const layers = [
+    showHeatmap && new H3HexagonLayer<{ hex: string; count: number }>({
+      id: 'demand-heatmap',
+      data: demand,
+      getHexagon: (d) => d.hex,
+      // pale yellow → deep orange as demand rises (colour-blind-safe warm ramp)
+      getFillColor: (d) => {
+        const t = d.count / maxDemand           // 0..1
+        return [230, 160 - t * 120, 40, 140]    // more red/opaque = hotter
+      },
+      extruded: false,
+      stroked: true,
+      getLineColor: [180, 120, 20, 120],
+      lineWidthMinPixels: 1,
+      pickable: false,
+    }),
     new PolygonLayer<typeof ZONES[number]>({
       id: 'zones',
       data: ZONES,
@@ -207,6 +227,25 @@ function App() {
             }}
           >
             ↺ Reset
+          </button>
+          <button
+            onClick={() => setShowGrid((s) => !s)}
+            style={{
+              padding: '6px 14px', borderRadius: 6, border: '1px solid #ccc',
+              background: showGrid ? '#ffe8cc' : '#fff', cursor: 'pointer',
+            }}
+          >
+            {showGrid ? '⬡ Hide H3 grid' : '⬡ Show H3 grid'}
+          </button>
+          <button
+            onClick={() => setShowHeatmap((v) => !v)}
+            style={{
+              padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc',
+              background: showHeatmap ? '#e67817' : '#fff',
+              color: showHeatmap ? '#fff' : '#333', cursor: 'pointer', fontWeight: 600,
+            }}
+          >
+            {showHeatmap ? 'Hide' : 'Show'} demand heatmap
           </button>
         </div>
         <input

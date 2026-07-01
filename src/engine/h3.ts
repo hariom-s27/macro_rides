@@ -82,3 +82,21 @@ export function queryEligibleH3(
 
   return { eligible, checked: candidates.length, total: pickups.length, candidateCells: [...candidateCells] }
 }
+
+export const H3_HEATMAP_RES = 8 // edge ≈ 461 m — coarse enough to read as density
+
+export interface DemandCell {
+  hex: string
+  count: number
+}
+
+/** Aggregate pickups into res-8 hexagons and count demand per cell.
+ *  A SECOND use of H3 — indexing (res 9) for lookup, aggregation (res 8) for demand. */
+export function buildDemandHeatmap(pickups: Pickup[]): DemandCell[] {
+  const counts = new Map<string, number>()
+  for (const p of pickups) {
+    const hex = latLngToCell(p.position[1], p.position[0], H3_HEATMAP_RES) // [lng,lat] → (lat,lng)
+    counts.set(hex, (counts.get(hex) ?? 0) + 1)
+  }
+  return [...counts].map(([hex, count]) => ({ hex, count }))
+}
