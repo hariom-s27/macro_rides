@@ -1,18 +1,14 @@
 import Map, { useControl } from 'react-map-gl/maplibre'
 import { MapboxOverlay } from '@deck.gl/mapbox'
 import type { MapboxOverlayProps } from '@deck.gl/mapbox'
-import { PathLayer } from '@deck.gl/layers'
+import { PathLayer, ScatterplotLayer } from '@deck.gl/layers'
 import { DRIVER_ROUTE } from './data/route'
+import { PICKUPS, type Pickup } from './data/pickups'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
 
-const driverRoutePath = DRIVER_ROUTE.reduce<number[]>((accumulator, [longitude, latitude]) => {
-  accumulator.push(longitude, latitude)
-  return accumulator
-}, [])
-
 const INITIAL_VIEW = {
-  longitude: 77.6210,   // re-centered on the route's middle
+  longitude: 77.6210,
   latitude: 12.9370,
   zoom: 14.5,
 }
@@ -25,16 +21,29 @@ function DeckGLOverlay(props: MapboxOverlayProps) {
 
 function App() {
   const layers = [
+    // route (drawn first = underneath)
     new PathLayer({
       id: 'driver-route',
-      data: [{ path: driverRoutePath }],   // PathLayer wants a flat path geometry here
-      getPath: (d: { path: number[] }) => d.path,
-      getColor: [30, 90, 200],          // blue — the route (color-blind-safe)
-      getWidth: 6,                      // width in metres
-      widthMinPixels: 3,                // never thinner than 3px when zoomed out
+      data: [{ path: DRIVER_ROUTE }],
+      getPath: (d: { path: number[][] }) => d.path,
+      getColor: [30, 90, 200],       // blue
+      getWidth: 6,
+      widthMinPixels: 3,
       capRounded: true,
       jointRounded: true,
-      _pathType: 'open',
+    }),
+    // pickups (drawn after = on top)
+    new ScatterplotLayer({
+      id: 'pickups',
+      data: PICKUPS,
+      getPosition: (d: Pickup) => d.position,
+      getFillColor: [110, 110, 110], // neutral grey — state unknown until Phase 4
+      getRadius: 30,                 // metres
+      radiusMinPixels: 4,            // never smaller than 4px
+      radiusMaxPixels: 10,
+      stroked: true,
+      getLineColor: [255, 255, 255], // white outline so dots read on any background
+      lineWidthMinPixels: 1,
     }),
   ]
 
