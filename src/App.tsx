@@ -5,6 +5,7 @@ import { PathLayer, ScatterplotLayer, PolygonLayer } from '@deck.gl/layers'
 import { DRIVER_ROUTE, type LngLat } from './data/route'
 import { PICKUPS, type Pickup } from './data/pickups'
 import { buildCorridor } from './engine/corridor'
+import { eligibleByBruteForce } from './engine/eligibility'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
 
@@ -22,6 +23,8 @@ function DeckGLOverlay(props: MapboxOverlayProps) {
 function App() {
   // Build the corridor once (later this recomputes as the driver moves).
   const corridor = buildCorridor(DRIVER_ROUTE, DRIVER_POS)
+  // Exact ground-truth eligibility (brute force over all pickups).
+  const eligibleIds = eligibleByBruteForce(PICKUPS, DRIVER_ROUTE, DRIVER_POS)
 
   const layers = [
     // corridor first = drawn underneath everything
@@ -51,7 +54,13 @@ function App() {
       id: 'pickups',
       data: PICKUPS,
       getPosition: (d: Pickup) => d.position,
-      getFillColor: [110, 110, 110],
+      getFillColor: (d: Pickup) =>
+        eligibleIds.has(d.id)
+          ? [230, 120, 20]
+          : [110, 110, 110],
+      updateTriggers: {
+        getFillColor: [eligibleIds],
+      },
       getRadius: 30,
       radiusMinPixels: 4,
       radiusMaxPixels: 10,
