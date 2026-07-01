@@ -60,14 +60,6 @@ export function queryEligibleH3(
   const slice = aheadSlice(route, driverMeters)
   const candidateCells = corridorCandidateCells(corridor as Feature<Polygon | MultiPolygon>)
 
-  // TEMP diagnostic — remove after we read it
-  console.log(
-    'corridor cells (padded):', candidateCells.size,
-    '| candidates pulled:',
-    [...candidateCells].reduce((n, c) => n + (index.get(c)?.length ?? 0), 0),
-    '| total pickups:', pickups.length,
-  )
-
   // broad phase: pull candidate pickups out of the candidate cells
   const candidates: Pickup[] = []
   for (const cell of candidateCells) {

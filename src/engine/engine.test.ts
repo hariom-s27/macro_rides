@@ -6,7 +6,7 @@ import destination from '@turf/destination'
 import { DRIVER_ROUTE } from '../data/route'
 import { aheadSlice } from './corridor'
 import { isEligible, alongDistanceMeters, isInActiveZone } from './eligibility'
-import type { Pickup } from '../data/pickups'
+import type { Pickup } from './types'
 
 // helper: make a Pickup at a given [lng,lat]
 const pk = (id: number, position: [number, number]): Pickup => ({ id, position })
