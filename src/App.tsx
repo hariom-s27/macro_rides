@@ -6,6 +6,11 @@ import { DRIVER_ROUTE } from './data/route'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './App.css'
 
+const driverRoutePath = DRIVER_ROUTE.reduce<number[]>((accumulator, [longitude, latitude]) => {
+  accumulator.push(longitude, latitude)
+  return accumulator
+}, [])
+
 const INITIAL_VIEW = {
   longitude: 77.6210,   // re-centered on the route's middle
   latitude: 12.9370,
@@ -22,13 +27,14 @@ function App() {
   const layers = [
     new PathLayer({
       id: 'driver-route',
-      data: [{ path: DRIVER_ROUTE }],   // PathLayer wants an array of paths
-      getPath: (d: { path: number[][] }) => d.path,
+      data: [{ path: driverRoutePath }],   // PathLayer wants a flat path geometry here
+      getPath: (d: { path: number[] }) => d.path,
       getColor: [30, 90, 200],          // blue — the route (color-blind-safe)
       getWidth: 6,                      // width in metres
       widthMinPixels: 3,                // never thinner than 3px when zoomed out
       capRounded: true,
       jointRounded: true,
+      _pathType: 'open',
     }),
   ]
 
