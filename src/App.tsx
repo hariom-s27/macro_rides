@@ -92,7 +92,7 @@ function App() {
       },
       extruded: false,
       stroked: true,
-      getLineColor: [200, 140, 40, 90],         // fainter outline too
+      getLineColor: [200, 140, 40, 70],          // fainter outline too
       lineWidthMinPixels: 1,
       pickable: false,
     }),
@@ -113,7 +113,7 @@ function App() {
       data: h3.candidateCells,
       getPolygon: (cell: string) => cellToRing(cell),
       getFillColor: [255, 140, 0, 30],     // faint orange fill
-      getLineColor: [255, 140, 0, 160],    // orange hex outlines
+      getLineColor: [120, 120, 120, 60],   // soft grey outlines — readable, not dark
       getLineWidth: 1,
       lineWidthMinPixels: 1,
       stroked: true,

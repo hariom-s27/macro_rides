@@ -22,21 +22,16 @@ export const DRIVER_ROUTE: LngLat[] = [
   [77.63100, 12.93320], // end — toward ST Bed / Ring Road side
 ]
 
-/** An alternate route for the re-route demo — same start/end, dips south through
- *  5th Block instead of following the north-bending arc of DRIVER_ROUTE. */
+/** Alternate route — a smoother southern path through Koramangala for the re-route demo. */
 export const ALT_ROUTE: LngLat[] = [
-  [77.61073, 12.93380], // same start
-  [77.61230, 12.93300],
-  [77.61420, 12.93230],
-  [77.61630, 12.93190],
-  [77.61850, 12.93180],
-  [77.62070, 12.93210],
-  [77.62280, 12.93270],
-  [77.62480, 12.93350],
-  [77.62670, 12.93440], // curves back north toward the shared end
-  [77.62840, 12.93520],
-  [77.62970, 12.93430],
-  [77.63100, 12.93320], // same end
+  [77.6108, 12.9335],
+  [77.6135, 12.9318],
+  [77.6165, 12.9305],
+  [77.6198, 12.9298],
+  [77.6232, 12.9302],
+  [77.6265, 12.9315],
+  [77.6292, 12.9332],
+  [77.6312, 12.9350],
 ]
 
 export const ROUTES: LngLat[][] = [DRIVER_ROUTE, ALT_ROUTE]
