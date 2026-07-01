@@ -1,37 +1,35 @@
-// --- The corridor engine: pure geometry, no React/map here. ---
-// Given the route + where the driver is, produce the 350m "road ahead" corridor.
-// Kept framework-free so it can be unit-tested in isolation (Phase 4, Step 18).
-
+import { lineString } from '@turf/helpers'
+import length from '@turf/length'
+import along from '@turf/along'
+import lineSliceAlong from '@turf/line-slice-along'
 import buffer from '@turf/buffer'
-import lineSlice from '@turf/line-slice'
-import { lineString, point } from '@turf/helpers'
-import type { Feature, Polygon, MultiPolygon } from 'geojson'
-import type { LngLat } from '../data/route'
+import type { LngLat, Route } from './types'
 
 export const CORRIDOR_METERS = 350
+const CORRIDOR_HALF_WIDTH_KM = CORRIDOR_METERS / 1000
+const MAX_AHEAD_KM = 2               // only look ~2 km ahead (ledger gap #4)
+
+/** Total route length in metres — used to size the slider. */
+export function routeLengthMeters(route: Route): number {
+  return length(lineString(route), { units: 'meters' })
+}
+
+/** The driver's [lng,lat], given how far along the route they are (metres). */
+export function driverPosition(route: Route, alongMeters: number): LngLat {
+  const pt = along(lineString(route), alongMeters, { units: 'meters' })
+  return pt.geometry.coordinates as LngLat
+}
 
 /**
- * buildCorridor
- * 1. slice the route from the driver's position to the end (the road AHEAD)
- * 2. buffer that slice outward by 350m → the corridor polygon
- *
- * @param route       full route as [lng,lat] points
- * @param driverPos   driver's current [lng,lat] (for now, the route's start)
- * @returns           a GeoJSON Polygon feature (the corridor), or null if it can't build
+ * The 350 m corridor covering the road AHEAD of the driver:
+ * slice the route from the driver's position forward (capped at MAX_AHEAD_KM),
+ * then buffer that slice by 350 m. Returns a GeoJSON polygon feature to draw.
  */
-export function buildCorridor(
-  route: LngLat[],
-  driverPos: LngLat,
-): Feature<Polygon | MultiPolygon> | null {
-  const line = lineString(route)          // route → a GeoJSON line
-  const start = point(driverPos)          // driver position → a GeoJSON point
-  const end = point(route[route.length - 1]) // last route point = destination
-
-  // road AHEAD only: cut from driver to destination
-  const ahead = lineSlice(start, end, line)
-
-  // inflate 350m on every side → the corridor
-  const corridor = buffer(ahead, CORRIDOR_METERS / 1000, { units: 'kilometers' })
-
-  return corridor ?? null
+export function buildCorridor(route: Route, alongMeters: number) {
+  const line = lineString(route)
+  const totalKm = length(line, { units: 'kilometers' })
+  const startKm = Math.min(alongMeters / 1000, totalKm)
+  const endKm = Math.min(startKm + MAX_AHEAD_KM, totalKm)
+  const aheadSlice = lineSliceAlong(line, startKm, endKm, { units: 'kilometers' })
+  return buffer(aheadSlice, CORRIDOR_HALF_WIDTH_KM, { units: 'kilometers' })
 }

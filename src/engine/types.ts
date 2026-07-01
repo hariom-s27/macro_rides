@@ -9,6 +9,6 @@ export type Route = LngLat[]
 
 /** A pickup request at a fixed location, with a stable id. */
 export interface Pickup {
-  id: string
+  id: number
   position: LngLat
 }

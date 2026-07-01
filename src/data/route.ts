@@ -3,7 +3,7 @@
 // Order matters: index 0 = start (where the driver begins), last = destination.
 // Every coordinate is [longitude, latitude] — our whole-app standard.
 
-export type LngLat = [number, number]
+import type { LngLat } from '../engine/types'
 
 export const DRIVER_ROUTE: LngLat[] = [
   [77.61073, 12.93380], // start — near Sony World Signal / 80 Feet Rd

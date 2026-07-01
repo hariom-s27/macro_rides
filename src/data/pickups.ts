@@ -1,10 +1,5 @@
-import type { LngLat } from './route'
+import type { LngLat, Pickup } from '../engine/types'
 import { DRIVER_ROUTE } from './route'
-
-export type Pickup = {
-  id: number
-  position: LngLat   // [lng, lat]
-}
 
 // --- tiny seeded random generator (mulberry32) ---
 // Given a fixed seed, it returns the SAME sequence of numbers every run.

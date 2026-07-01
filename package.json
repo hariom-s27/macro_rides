@@ -12,9 +12,12 @@
   "dependencies": {
     "@deck.gl/mapbox": "^9.3.5",
     "@deck.gl/react": "^9.3.5",
+    "@turf/along": "^7.3.5",
     "@turf/buffer": "^7.3.5",
     "@turf/helpers": "^7.3.5",
+    "@turf/length": "^7.3.5",
     "@turf/line-slice": "^7.3.5",
+    "@turf/line-slice-along": "^7.3.5",
     "@turf/nearest-point-on-line": "^7.3.5",
     "@turf/point-to-line-distance": "^7.3.5",
     "deck.gl": "^9.3.5",
