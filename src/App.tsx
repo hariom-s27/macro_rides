@@ -166,7 +166,7 @@ function App() {
       getLineColor: [255, 255, 255],
       lineWidthMinPixels: 2,
     }),
-  ]
+  ].filter((layer): layer is NonNullable<typeof layer> => Boolean(layer))
 
   return (
     <>
@@ -175,7 +175,7 @@ function App() {
         mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         style={{ width: '100%', height: '100vh' }}
       >
-        <DeckGLOverlay layers={layers as any} />
+        <DeckGLOverlay layers={layers as NonNullable<MapboxOverlayProps['layers']>} />
       </Map>
 
       <div style={{
