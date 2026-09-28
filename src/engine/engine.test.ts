@@ -11,7 +11,8 @@ import type { Pickup } from './types'
 
 // helper: make a Pickup at a given [lng,lat]
 const pk = (id: number, position: [number, number]): Pickup => ({ id, position })
-const coordOf = (f: any) => f.geometry.coordinates as [number, number]
+const coordOf = (f: { geometry: { coordinates: unknown } }) =>
+  f.geometry.coordinates as [number, number]
 
 describe('distance accuracy — the ground-truth fixture', () => {
   it('a known 300m offset measures as 300m (±3m)', () => {
